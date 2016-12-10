@@ -5,11 +5,13 @@ FILENAME=$(basename $DOWNLOAD_URL)
 TMP_DIR="/tmp"
 INSTALL_DIR="/usr/java"
 PRESERVE_FILE="false"
-CURL_DOWNLOAD_HEADER='Cookie: oraclelicense=accept-securebackup-cookie'
+PROFILE_FILE="/etc/profile.d/java.sh"
+CURL_DOWNLOAD_OPTIONS='-v -j -k -L'
+COOKIE='Cookie: oraclelicense=accept-securebackup-cookie'
 
 function do_install(){
 
-	curl -v -j -k -L -H "${CURL_DOWNLOAD_HEADER}" $DOWNLOAD_URL > $TMP_DIR/$FILENAME
+	curl $CURL_DOWNLOAD_OPTIONS -H "${COOKIE}" $DOWNLOAD_URL > $TMP_DIR/$FILENAME
 	[ "$?" -ne "0" ] && { echo "Download failed, exit" 1>&2; exit 1; }
 
 	if [[ "${FILENAME}" == *"rpm" ]];then
@@ -23,12 +25,20 @@ function do_install(){
 		tar -zxf $TMP_DIR/$FILENAME -C $INSTALL_DIR
 		[ "$?" -ne "0" ] && { echo "Extract failed, exit" 1>&2; exit 1; }
 
+
+    echo "JAVA_HOME=${INSTALL_DIR}/jdk1.8.0_112" > $PROFILE_FILE
+    echo "PATH=\${JAVA_HOME}/bin:\$PATH" >> $PROFILE_FILE
+
+    source $PROFILE_FILE
+
+    alternatives --install /usr/bin/java java $INSTALL_DIR/jdk1.8.0_112/bin/java 1
+    alternatives --install /usr/bin/jar jar $INSTALL_DIR/jdk1.8.0_112/bin/jar 1
 	else
 		echo "Install failed - Unknown file type" 1>&2
 	fi
 
 	echo "Install success"
-	
+
 }
 
 function usage(){
