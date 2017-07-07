@@ -5,7 +5,11 @@
 # - Set readonly database
 #   >= puppetdb 1.6 can set read only database
 #
-DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
+declare -r DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
+declare -r PUPPET_MODULE_PATH="/tmp/modules-$$"
+declare -r MEM_TOTAL_IN_KB=$(grep "MemTotal" /proc/meminfo  | awk '{print $2}')
+declare -r DEFAULT_JVM_HEAP_SIZE="$(( $MEM_TOTAL_IN_KB * 60 / 100 / 1024 ))"
+declare -r DEFAULT_JVM_EXTRA_ARGS="+AlwaysPreTouch"
 
 if [ -f ${DIR}/functions ];then
   source ${DIR}/functions
@@ -28,7 +32,7 @@ function usage(){
   echo
   echo
   echo "Example:"
-  echo "`basename $0` --pg-host 172.16.0.24 --pg-database puppetdb --pg-account puppetdb --pg-password please_change_me"
+  echo "`basename $0` --pg-host 172.16.0.24 --pg-database puppetdb --pg-account puppetdb"
   echo
   exit 2
 }
@@ -46,7 +50,6 @@ function main(){
   local pg_port="5432"
   local pg_database="puppetdb"
   local pg_account="puppetdb"
-  local pg_password="puppetdb"
   local preserve_pp="false"
   local start_service="stopped"
 
@@ -66,12 +69,9 @@ function main(){
   done
 
 
-  puppetversion=$(puppet -V)
-  [ "x${puppetversion}" = "x" ] && install_puppet agent
+  rpm -qi puppet-agent > /dev/null || install_puppet agent
 
-  puppet module install puppetlabs-stdlib --version "4.12.0"
-  puppet module install puppetlabs/puppetdb --version "5.1.2"
-
+  puppet module install puppetlabs/puppetdb --version "5.1.2" --modulepath=$PUPPET_MODULE_PATH
 
   echo
   echo "===================================================="
@@ -84,19 +84,19 @@ function main(){
 
   [ "${answer}" = "Y" -o "${answer}" = "y" ] || { echo "Exit"; exit 1;  }
 
+  if [ -z $pg_password ];then
+    echo
+    echo "Please enter password of the ${pg_database}:"
+    read pg_password
+  fi
+
   echo
   echo "Continue to install PuppetDB..."
   echo
   TMP_FILE=/tmp/puppetdb_$$.pp
 
   cat <<'EOF' > $TMP_FILE
-$total=$facts['memory']['system']['total_bytes']
-$jvm_allocate_mem_in_gib = ceiling($total / 0.7) / (1024*1024*1024)
 class { 'puppetdb::server':
-  java_args         => { 
-    '-Xmx' => "${jvm_allocate_mem_in_gib}g",
-    '-Xms' => '512m',
-  },
   listen_address    => '0.0.0.0',
   ssl_set_cert_paths=> true,
   ssl_cert_path     => "/etc/puppetlabs/puppet/ssl/certs/${::fqdn}.pem",
@@ -106,10 +106,15 @@ class { 'puppetdb::server':
 EOF
 
   cat <<EOF >> $TMP_FILE
+  java_args         => {
+    '-Xmx' => "${DEFAULT_JVM_HEAP_SIZE}m",
+    '-Xms' => "${DEFAULT_JVM_HEAP_SIZE}m",
+    '-XX:' => "${DEFAULT_JVM_EXTRA_ARGS}",
+  },
   puppetdb_service_status => '${start_service}',
   database_host     => '${pg_host}',
   database_port     => '${pg_port}',
-  database_name     => '${pg_database}', 
+  database_name     => '${pg_database}',
   database_username => '${pg_account}',
   database_password => '${pg_password}',
   node_ttl          => '7d',
@@ -117,9 +122,11 @@ EOF
 }
 EOF
 
-  puppet apply $TMP_FILE
+  puppet apply $TMP_FILE --modulepath=$PUPPET_MODULE_PATH
 
-  usermod -g puppetdb -G puppet puppetdb 
+  # If the puppet account does not exist, create it first
+  getent passwd puppet || useradd -r puppet
+  usermod -g puppetdb -G puppet puppetdb
 
   [ "${preserve_pp}" = "false" ] && rm -f $TMP_FILE
 
@@ -128,20 +135,23 @@ EOF
   echo "[ NOTICE ]"
   echo
   echo "You need a SSL certificate to run PuppetDB"
-  echo 
+  echo
   echo "follow this orders:"
   echo
-  echo "1. Generate certificate on Puppet CA" 
-  echo "  puppet certificate generate --ca-location local \\"
-  echo "    --dns-alt-names puppetdb.cdngp.net $(hostname -f)"
+  echo "1. Request a certificate from the Puppet CA"
+  echo "  puppet certificate generate --ca-location remote \\"
+  echo "    --ca_server puppet2-ca.cdngp.net \\"
+  echo "    --dns-alt-names puppetdb2.cdngp.net $(hostname -f)"
+  echo
+  echo "2. After requesting, you should sign the CSR on the Puppet CA"
   echo "  puppet cert sign $(hostname -f) --allow-dns-alt-names"
-  echo 
+  echo
   echo "2. Run puppet agent"
   echo "   source /etc/profile.d/puppet-agent.sh"
   echo "   puppet agent -t"
   echo
-  echo "3. Start puppetdb"
-  echo "   systemctl start puppetdb.service"
+  echo "3. Enable & Start puppetdb service"
+  echo "   for x in enable start;do systemctl \$x puppetdb.service; done"
   echo
   echo "======================================================================="
   echo

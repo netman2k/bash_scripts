@@ -2,6 +2,7 @@
 # description: this script deploys PostgreSQL server on this server.
 #              via using puppet
 DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
+PUPPET_MODULE_PATH="/tmp/modules-$$"
 
 if [ -f ${DIR}/functions ];then
   source ${DIR}/functions
@@ -48,12 +49,13 @@ function main(){
       esac
   done
 
-  puppetversion=$(puppet -V)
-  [ "x${puppetversion}" = "x" ] && install_puppet agent
+  rpm -qi puppet-agent > /dev/null || install_puppet agent
 
-  puppet module install puppetlabs-stdlib --version "4.12.0"
-  puppet module install puppetlabs-postgresql --version "4.8.0"
 
+  # Clean up all modules previously used
+  rm -rf $PUPPET_MODULE_PATH/*
+
+  puppet module install puppetlabs-postgresql --version "4.9.0" --modulepath=$PUPPET_MODULE_PATH --force
 
   if [ -z $pg_password ];then
     echo "You need to set the pg_password option"
@@ -97,7 +99,7 @@ postgresql::server::db { '${database}':
 EOF
   fi
 
-  puppet apply $TMP_FILE
+  puppet apply $TMP_FILE --modulepath=$PUPPET_MODULE_PATH
 
   rm -f $TMP_FILE
 

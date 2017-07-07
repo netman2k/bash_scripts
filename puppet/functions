@@ -1,20 +1,19 @@
-#!/bin/bash
+!/bin/bash
 
 # description: this function installs puppet agent or server
-# 
+#
 # param $1: if this value is not entered, puppet server will be installed
 #           Enter any value if you want to install puppet agent instead.
 function install_puppet(){
 
-  rpm -qi puppetlabs-release-pc1 > /dev/null || rpm -Uvh https://yum.puppetlabs.com/puppetlabs-release-pc1-el-7.noarch.rpm
+  rpm -qi puppet5-release-el-7 > /dev/null || rpm -Uvh https://yum.puppetlabs.com/puppet5/puppet5-release-el-7.noarch.rpm
 
-  if [ ! "x${1}" = "x" ];then
-		rpm -qi puppetserver > /dev/null || yum install puppetserver -y
+  if [ "x${1}" = "x" ];then
+    rpm -qi puppetserver > /dev/null || yum install puppetserver -y
   else
     useradd -r puppet
-		rpm -qi puppet-agent> /dev/null || yum install puppet-agent -y
-	fi
+    rpm -qi puppet-agent > /dev/null || yum install puppet-agent -y
+  fi
 
   source /etc/profile.d/puppet-agent.sh
 }
-
