@@ -30,7 +30,7 @@ function set_puppetserver(){
    section=main \
    setting=server \
    value="$1" \
-   --modulepath=$PUPPET_MODULE_PATH
+   --modulepath=$PUPPET_MODULE_PATH 
 
 }
 
@@ -42,7 +42,7 @@ function set_ca_server(){
    section=main \
    setting=ca_server \
    value="$1" \
-   --modulepath=$PUPPET_MODULE_PATH
+   --modulepath=$PUPPET_MODULE_PATH 
 
 }
 

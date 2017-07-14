@@ -36,10 +36,10 @@ function _to_puppet_array(){
 
 # Disable CA
 function disable_ca(){
-  echo "    server_ca                   => false,"            >> $INSTALL_PP
+  echo "    server_ca                   => false,"            >> $INSTALL_PP 
 }
 
-# Set Git repo
+# Set Git repo 
 function set_git_repo(){
   local -r git_repo_path=${1:-$DEFAULT_GIT_REPO_PATH}
 
@@ -49,7 +49,7 @@ function set_git_repo(){
   if [ "x${git_repo_path}" != "x" ];then
     echo "    server_git_repo_path        => '${git_repo_path}'," >> $INSTALL_PP
   fi
-
+   
 }
 
 # Set DNS alternative names
@@ -62,7 +62,7 @@ function set_alt_dns_names(){
 function set_foreman(){
   local foreman_fqdn=$1
 
-  if [ "x${foreman_fqdn}" = "x" ];then
+  if [ "x${foreman_fqdn}" = "x" ];then 
     echo "    server_foreman              => false,"              >> $INSTALL_PP
     echo "    server_external_nodes       => '',"                 >> $INSTALL_PP
   else
@@ -111,7 +111,7 @@ function set_extras(){
   echo "    server_dynamic_environments => true,"    >> $INSTALL_PP
 
   # Prevent from regenerate certificate when you roll back to real name
-  # for example, we use a name puppet2-ca.cdngp.net for Puppet CA
+  # for example, we use a name puppet2-ca.cdngp.net for Puppet CA 
   # but the real name of the server will be h0-s1028.p61-icn.cdngp.net
   # Due to these setting, we can use common name for serving puppet agent
   # and hostname can be used by using fqdn facter as well.
@@ -148,7 +148,7 @@ function usage(){
   echo
   echo -e "\t--git-repo          Use this option to set a Git repository on this server"
   echo -e "\t                    With this option, puppet environment will be set as you commit any codes in the repository"
-  echo
+  echo 
   echo -e "\t--foreman-fqdn      Use this option to set an URL of Foreman. If it is not set, this script will not integrate with Foreman"
   echo -e "\t                    If it is not specified, this script will not integrate with Foreman"
   echo
@@ -160,9 +160,9 @@ function usage(){
   echo -e "\t                    Default, ${DEFAULT_JVM_HEAP_SIZE}m"
   echo -e "\t--jvm-extra         Use this option to set JVM extra options"
   echo -e "\t                    Default, ${DEFAULT_JVM_EXTRA_ARGS}"
-  echo
+  echo 
   echo -e "\t--no-run            Use this option to generate a pp file, ${INSTALL_PP} to see without run puppet"
-  echo
+  echo 
   echo "Examples:"
   echo -e "\t${0} --foreman-fqdn=foreman.example.com"
   echo -e "\t${0} --puppetdb-fqdn=puppetdb.example.com"
@@ -184,7 +184,7 @@ function usage(){
 }
 
 
-function main(){
+function main(){ 
 
   # parse getopts options
   local tmp_getopts=`getopt -o h,n --long help,alt-dns-names:,no-ca,git-repo,git-path:,foreman-fqdn:,puppetdb-fqdn:,ca-fqdn:,jvm-extra:,jvm-heap:,no-run -- "$@"`
@@ -199,7 +199,7 @@ function main(){
           --puppetdb-fqdn)              local puppetdb_fqdn=$2;                     shift 2;;
           --no-ca)                      local no_puppet_ca="false";                 shift;;
           --ca-fqdn)                    local ca_fqdn=$2;                           shift 2;;
-          --git-repo)                   local git_repo="true";                    shift;;
+          --git-repo)                   local git_repo="true";                	    shift;;
           --git-path)                   local git_repo_path=$2;                     shift 2;;
           --jvm-heap)                   local jvm_heap=$2;                          shift 2;;
           --jvm-extra)                  local jvm_extras=$2;                        shift 2;;
@@ -230,10 +230,10 @@ function main(){
   _begin
   set_foreman $foreman_fqdn
   set_jvm $jvm_heap $jvm_extras
-  set_puppetdb $puppetdb_fqdn
+  set_puppetdb $puppetdb_fqdn 
   set_reports $foreman_fqdn $puppetdb_fqdn
   set_extras
-
+  
 
   [ "x${no_puppet_ca}" = "x"  ] || disable_ca
   [ "${git_repo}" != "true"   ] || set_git_repo $git_repo_path
@@ -242,7 +242,7 @@ function main(){
 
   if [ "x${no_run}" = "x" ];then
     puppet apply $INSTALL_PP --test --modulepath $MODULE_PATH
-
+    
     /opt/puppetlabs/bin/puppetserver gem install hiera-eyaml
     /opt/puppetlabs/puppet/bin/gem install hiera-eyaml
 

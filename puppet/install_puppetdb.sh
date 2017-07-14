@@ -106,7 +106,7 @@ class { 'puppetdb::server':
 EOF
 
   cat <<EOF >> $TMP_FILE
-  java_args         => {
+  java_args         => { 
     '-Xmx' => "${DEFAULT_JVM_HEAP_SIZE}m",
     '-Xms' => "${DEFAULT_JVM_HEAP_SIZE}m",
     '-XX:' => "${DEFAULT_JVM_EXTRA_ARGS}",
@@ -114,7 +114,7 @@ EOF
   puppetdb_service_status => '${start_service}',
   database_host     => '${pg_host}',
   database_port     => '${pg_port}',
-  database_name     => '${pg_database}',
+  database_name     => '${pg_database}', 
   database_username => '${pg_account}',
   database_password => '${pg_password}',
   node_ttl          => '7d',
@@ -126,7 +126,7 @@ EOF
 
   # If the puppet account does not exist, create it first
   getent passwd puppet || useradd -r puppet
-  usermod -g puppetdb -G puppet puppetdb
+  usermod -g puppetdb -G puppet puppetdb 
 
   [ "${preserve_pp}" = "false" ] && rm -f $TMP_FILE
 
@@ -135,17 +135,17 @@ EOF
   echo "[ NOTICE ]"
   echo
   echo "You need a SSL certificate to run PuppetDB"
-  echo
+  echo 
   echo "follow this orders:"
   echo
-  echo "1. Request a certificate from the Puppet CA"
+  echo "1. Request a certificate from the Puppet CA" 
   echo "  puppet certificate generate --ca-location remote \\"
   echo "    --ca_server puppet2-ca.cdngp.net \\"
   echo "    --dns-alt-names puppetdb2.cdngp.net $(hostname -f)"
   echo
   echo "2. After requesting, you should sign the CSR on the Puppet CA"
   echo "  puppet cert sign $(hostname -f) --allow-dns-alt-names"
-  echo
+  echo 
   echo "2. Run puppet agent"
   echo "   source /etc/profile.d/puppet-agent.sh"
   echo "   puppet agent -t"
