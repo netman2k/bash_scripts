@@ -6,7 +6,7 @@
 #           Enter any value if you want to install puppet agent instead.
 function install_puppet(){
 
-  rpm -qi puppetlabs-release-pc1 > /dev/null || rpm -Uvh https://yum.puppetlabs.com/puppetlabs-release-pc1-el-7.noarch.rpm
+  rpm -qi puppet5-release > /dev/null || rpm -Uvh https://yum.puppetlabs.com/puppet5/puppet5-release-el-7.noarch.rpm
 
   if [ "x${1}" = "x" ];then
     rpm -qi puppetserver > /dev/null || yum install puppetserver -y
