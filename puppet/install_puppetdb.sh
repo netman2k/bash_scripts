@@ -140,8 +140,8 @@ EOF
   echo
   echo "1. Request a certificate from the Puppet CA" 
   echo "  puppet certificate generate --ca-location remote \\"
-  echo "    --ca_server puppet2-ca.cdngp.net \\"
-  echo "    --dns-alt-names puppetdb2.cdngp.net $(hostname -f)"
+  echo "    --ca_server puppet2.example.net \\"
+  echo "    --dns-alt-names puppetdb.example.net $(hostname -f)"
   echo
   echo "2. After requesting, you should sign the CSR on the Puppet CA"
   echo "  puppet cert sign $(hostname -f) --allow-dns-alt-names"

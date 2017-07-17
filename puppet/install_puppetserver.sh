@@ -7,9 +7,6 @@ declare -r DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
 declare -r MODULE_PATH="/tmp/modules_$$"
 declare -r INSTALL_PP="/tmp/puppet_install.pp"
 declare -r MEM_TOTAL_IN_KB=$(grep "MemTotal" /proc/meminfo  | awk '{print $2}')
-declare -r DEFAULT_FOREMAN_FQDN="foreman.cdngp.net"
-declare -r DEFAULT_PUPPETDB_FQDN="puppetdb.cdngp.net"
-declare -r DEFAULT_PUPPETCA_FQDN="puppetca.cdngp.net"
 declare -r DEFAULT_JVM_HEAP_SIZE="$(( $MEM_TOTAL_IN_KB * 60 / 100 / 1024 ))"
 declare -r DEFAULT_JVM_EXTRA_ARGS="-XX:+AlwaysPreTouch"
 declare -r DEFAULT_GIT_REPO_PATH="/var/lib/gitolite/repositories/puppet.git"
@@ -111,15 +108,13 @@ function set_extras(){
   echo "    server_dynamic_environments => true,"    >> $INSTALL_PP
 
   # Prevent from regenerate certificate when you roll back to real name
-  # for example, we use a name puppet2-ca.cdngp.net for Puppet CA 
-  # but the real name of the server will be h0-s1028.p61-icn.cdngp.net
-  # Due to these setting, we can use common name for serving puppet agent
-  # and hostname can be used by using fqdn facter as well.
+  # I will use a common name for service and hostname can be used by using fqdn 
+  # facter as well.
   echo "    server_certname             => '${HOSTNAME}',"    >> $INSTALL_PP
   echo "    client_certname             => '${HOSTNAME}',"    >> $INSTALL_PP
 
-  # Set autosign entries
-  echo "    autosign_entries            => [ '*.cdngp.net' ]," >> $INSTALL_PP
+  # TODO Set autosign entries
+  #echo "    autosign_entries            => [  ]," >> $INSTALL_PP
 }
 
 # Opening a PP file
@@ -172,12 +167,10 @@ function usage(){
   echo -e "\t${0} --no-run"
   echo
   echo "CA server:"
-  echo -e "\t${0} --alt-dns-names=puppet2.cdngp.net,puppet2-global.cdngp.net,puppet2-ca.cdngp.net,puppet"
-  echo -e "\t     WARNING: before run this command, you should set your hostname with this FQDN puppet2-ca.cdngp.net"
-  echo -e "\t              and after done installing, you can set your real hostname ie. h0-s1028.p61-icn.cdngp.net"
+  echo -e "\t${0} --alt-dns-names=puppet.example.net,puppet-lb.example.net,puppet-ca.example.net,puppet"
   echo
   echo "PuppetServer:"
-  echo -e "\t${0} --no-ca --alt-dns-names=puppet2.cdngp.net,puppet2-global.cdngp.net,puppet"
+  echo -e "\t${0} --no-ca --alt-dns-names=puppet.example.net,puppet-lb.example.net,puppet"
   echo
   echo
   exit 2
