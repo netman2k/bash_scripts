@@ -1,5 +1,6 @@
 #!/bin/bash
 DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
+PUPPET_MODULE_PATH="/tmp/modules-$$"
 
 if [ -f ${DIR}/functions ];then
   source ${DIR}/functions
@@ -28,7 +29,8 @@ function set_puppetserver(){
    path=/etc/puppetlabs/puppet/puppet.conf \
    section=main \
    setting=server \
-   value="$1"
+   value="$1" \
+   --modulepath=$PUPPET_MODULE_PATH 
 
 }
 
@@ -39,7 +41,8 @@ function set_ca_server(){
    path=/etc/puppetlabs/puppet/puppet.conf \
    section=main \
    setting=ca_server \
-   value="$1"
+   value="$1" \
+   --modulepath=$PUPPET_MODULE_PATH 
 
 }
 
@@ -66,7 +69,7 @@ function main(){
   install_puppet agent
 
   if [ ! "${server}" = "" ] || [ ! "${ca_server}" = "" ];then
-    puppet module install puppetlabs/inifile
+    puppet module install puppetlabs/inifile --modulepath=$PUPPET_MODULE_PATH
     [ ! "${server}" = "" ]      || set_puppetserver $server
     [ ! "${ca_server}" = "" ]   || set_ca_server $ca_server
   fi
