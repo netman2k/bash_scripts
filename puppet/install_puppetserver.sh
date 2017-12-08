@@ -40,7 +40,7 @@ function disable_ca(){
 function set_git_repo(){
   local -r git_repo_path=${1:-$DEFAULT_GIT_REPO_PATH}
 
-  puppet module install --modulepath=$MODULE_PATH theforeman-git --version 2.0.0
+  puppet module install --modulepath=$MODULE_PATH theforeman-git --version 3.0.0
 
   echo "    server_git_repo             => true,"                 >> $INSTALL_PP
   if [ "x${git_repo_path}" != "x" ];then
@@ -72,7 +72,7 @@ function set_puppetdb(){
   local -r puppetdb_fqdn=$1
 
   if [ "x${puppetdb_fqdn}" != "x" ];then
-    puppet module install --modulepath=$MODULE_PATH puppetlabs-puppetdb --version 5.1.2
+    puppet module install --modulepath=$MODULE_PATH puppetlabs-puppetdb --version 6.0.1
 
     echo "    server_puppetdb_host        => '${puppetdb_fqdn}',"   >> $INSTALL_PP
     echo "    server_storeconfigs_backend => 'puppetdb',"           >> $INSTALL_PP
@@ -218,7 +218,7 @@ function main(){
 
   source /etc/profile.d/puppet-agent.sh
 
-  puppet module install --modulepath=$MODULE_PATH theforeman-puppet --version 6.0.1
+  puppet module install --modulepath=$MODULE_PATH theforeman-puppet --version 8.0.3
 
   _begin
   set_foreman $foreman_fqdn
