@@ -55,7 +55,9 @@ function main(){
   # Clean up all modules previously used
   rm -rf $PUPPET_MODULE_PATH/*
 
-  puppet module install puppetlabs-postgresql --version "4.9.0" --modulepath=$PUPPET_MODULE_PATH --force
+  puppet module install puppetlabs-stdlib --version "4.21.0" --modulepath=$PUPPET_MODULE_PATH
+    puppet module install puppetlabs-concat --version "4.1.0" --modulepath=$PUPPET_MODULE_PATH
+      puppet module install puppetlabs-postgresql --version "5.2.0" --modulepath=$PUPPET_MODULE_PATH
 
   if [ -z $pg_password ];then
     echo "You need to set the pg_password option"
