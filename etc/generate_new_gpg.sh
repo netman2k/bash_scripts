@@ -19,6 +19,7 @@ declare -r DEFAULT_PASSPHRASE="$(date "+%F %H:%M:%S" | sha256sum | base64 | head
 
 
 # Check RNGD option
+# TODO - need to be fixed when user run it on VM
 function check_rngd(){
     if [[ $EUID -ne 0 ]]; then
         echo
@@ -170,7 +171,7 @@ function main {
 
     parse_arguments "$@"
     
-    check_rngd
+    # check_rngd
     init_gpg_home_dir $DIRECTORY
     gen_gpg "${NAME}" "${COMMENT}" "${EMAIL}" "${EXPIRE_DATE}" "${PASSPHRASE}" "${DIRECTORY}" "${ANSWER_FILE}" "${DRY_RUN}" 
     if [ "x${DRY_RUN}" = "x" ];then
