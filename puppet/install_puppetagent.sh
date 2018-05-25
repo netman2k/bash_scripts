@@ -75,12 +75,12 @@ function main(){
   fi
 
   if [ ! "${disable}" = "true" ];then
-    systemctl enable puppet.service
+    sudo systemctl enable puppet.service
   elif [ ! "${stopped}" = "true" ];then
-    systemctl enable puppet.service
+    sudo systemctl enable puppet.service
   else
-    systemctl disable puppet.service
-    systemctl stop puppet.service
+    sudo systemctl disable puppet.service
+    sudo systemctl stop puppet.service
   fi
 
 }

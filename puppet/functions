@@ -6,13 +6,32 @@
 #           Enter any value if you want to install puppet agent instead.
 function install_puppet(){
 
-  rpm -qi puppet5-release > /dev/null || rpm -Uvh https://yum.puppetlabs.com/puppet5/puppet5-release-el-7.noarch.rpm
+  if [ -f /etc/redhat-release ] && 
 
-  if [ "x${1}" = "x" ];then
-    rpm -qi puppetserver > /dev/null || yum install puppetserver -y
+    rpm -qi puppet5-release > /dev/null || rpm -Uvh https://yum.puppetlabs.com/puppet5/puppet5-release-el-7.noarch.rpm
+
+    if [ "x${1}" = "x" ];then
+      rpm -qi puppetserver > /dev/null || yum install puppetserver -y
+    else
+      useradd -r puppet
+      rpm -qi puppet-agent > /dev/null || yum install puppet-agent -y
+    fi
+
   else
-    useradd -r puppet
-    rpm -qi puppet-agent > /dev/null || yum install puppet-agent -y
+    
+    local codename=$(lsb_release -c | awk '{print $2}')
+    
+    if [[ $codename =~ (xenial|trustry|stretch|jessie|wheezy) ]];then
+      wget https://apt.puppetlabs.com/puppet5-release-${codename}.deb
+      sudo dpkg -i puppet5-release-${codename}.deb
+      sudo apt update
+      sudo apt install puppet-agent
+
+    else
+      echo "Not support your platform(${codename})" 2>&1
+      exit 1
+    fi
+
   fi
 
   source /etc/profile.d/puppet-agent.sh
