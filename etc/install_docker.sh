@@ -47,7 +47,7 @@ function parse_arguments {
     do
         case $OPTION in
             h) usage;;
-            d) docker_data_directory=$1;;
+            d) docker_data_directory=$2; shift;;
             v) set -x;;
             s) disable_docker_service=true;;
         esac
