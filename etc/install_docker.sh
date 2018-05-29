@@ -6,21 +6,30 @@
 #   Installing Docker and composer
 declare -r PROGNAME=$(basename $0)
 declare -r PROGDIR=$(readlink -m $(dirname $0))
-
+declare -r DEFAULT_PROMETHEUS_LISTEN="127.0.0.1:9323"
+declare -r DEFAULT_DATA_ROOT="/var/lib/docker"
+declare -r DEFAULT_EXPERIMENTAL="true"
+declare -r DAEMON_JSON_FILE="/etc/docker/daemon.json"
+declare -A OPTIONS=( ["data_root"]="${DEFAULT_DATA_ROOT}"  ["metrics-addr"]="${DEFAULT_PROMETHEUS_LISTEN}" ["experimental"]="${DEFAULT_EXPERIMENTAL}" )
 function usage {
     cat <<- EOF
 Usage: $PROGNAME [ -h ]
 
 Optional arguments:
     -h: Help
-    -d: Change default docker data directory
-    -s: Disables docker service
+    -d: Change default docker data directory (default, ${DEFAULT_DATA_ROOT})
+    -e: Disable experimental feature (default, enabled)
+    -s: Disable docker service (default, enabled)
+    -p: Change prometheus bind URL (default, ${DEFAULT_PROMETHEUS_LISTEN})
     -v: Enable debug mode
 
 General usage example:
 
   $ $PROGNAME -v 
   $ $PROGNAME -d /data/docker-data
+  $ $PROGNAME -e true
+  $ $PROGNAME -p "0.0.0.0:9323"
+  $ $PROGNAME -s
 
 EOF
 
@@ -43,13 +52,15 @@ function get_pkg_manager() {
 
 
 function parse_arguments {
-    while getopts vd:sh OPTION
+    while getopts vd:sp:eh OPTION
     do
         case $OPTION in
             h) usage;;
-            d) docker_data_directory=$2; shift;;
+            d) OPTIONS["data_root"]=$OPTARG;;
+            e) OPTIONS["experimental"]="false";;
+            s) disable_service=true;;
+            p) OPTIONS["metrics-addr"]=$OPTARG;;
             v) set -x;;
-            s) disable_docker_service=true;;
         esac
     done
 }
@@ -62,23 +73,23 @@ function install_docker(){
   echo
 
   if [[ $pkg_mgr =~ (apt[-get]?) ]];then
-    sudo apt-get remove docker docker-engine docker.io
-    sudo apt-get update
-    sudo apt-get install apt-transport-https ca-certificates curl software-properties-common
-    curl -fsSL https://download.docker.com/linux/ubuntu/gpg | sudo apt-key add -
-    sudo add-apt-repository "deb [arch=amd64] https://download.docker.com/linux/ubuntu \
+    apt-get remove docker docker-engine docker.io
+    apt-get update
+    apt-get install apt-transport-https ca-certificates curl software-properties-common
+    curl -fsSL https://download.docker.com/linux/ubuntu/gpg | apt-key add -
+    add-apt-repository "deb [arch=amd64] https://download.docker.com/linux/ubuntu \
        $(lsb_release -cs) stable"
-    sudo apt-get update
-    sudo apt-get install docker-ce
+    apt-get update
+    apt-get install docker-ce
     
 
   elif [ $pkg_mgr = "yum" ];then
-    sudo yum remove docker docker-client docker-client-latest docker-common \
+    yum remove docker docker-client docker-client-latest docker-common \
          docker-latest docker-latest-logrotate docker-logrotate docker-selinux \
          docker-engine-selinux docker-engine -y
-    sudo yum install -y yum-utils device-mapper-persistent-data lvm2
-    sudo yum-config-manager --add-repo https://download.docker.com/linux/centos/docker-ce.repo
-    sudo yum install -y docker-ce
+    yum install -y yum-utils device-mapper-persistent-data lvm2
+    yum-config-manager --add-repo https://download.docker.com/linux/centos/docker-ce.repo
+    yum install -y docker-ce
 
   fi
 }
@@ -89,11 +100,19 @@ function install_docker_compose(){
   echo "Installing Docker compose..."
   echo
 
-  sudo curl -L https://github.com/docker/compose/releases/download/1.19.0/docker-compose-`uname -s`-`uname -m` \
+  curl -L https://github.com/docker/compose/releases/download/1.19.0/docker-compose-`uname -s`-`uname -m` \
   -o /usr/local/bin/docker-compose
-  sudo curl -L https://raw.githubusercontent.com/docker/compose/1.19.0/contrib/completion/bash/docker-compose \
+  curl -L https://raw.githubusercontent.com/docker/compose/1.19.0/contrib/completion/bash/docker-compose \
   -o /etc/bash_completion.d/docker-compose
-  sudo chmod +x /usr/local/bin/docker-compose
+  chmod +x /usr/local/bin/docker-compose
+}
+
+function set_daemon_option() {
+    echo "{" > $DAEMON_JSON_FILE
+    echo -e "  \"data-root\": \"${OPTIONS[data_root]}\","       >> $DAEMON_JSON_FILE
+    echo -e "  \"metrics-addr\": \"${OPTIONS[metrics-addr]}\"," >> $DAEMON_JSON_FILE
+    echo -e "  \"experimental\": ${OPTIONS[experimental]}"      >> $DAEMON_JSON_FILE
+    echo "}" >> $DAEMON_JSON_FILE
 }
 
 function main {
@@ -102,6 +121,8 @@ function main {
 
     parse_arguments "$@"
     
+    [ `id -u` -ne 0 ] && { echo "The script must be run as root! (you can use sudo)"; exit 1; }
+
     pkg_mgr=$(get_pkg_manager)
    
     install_docker $pkg_mgr
@@ -109,15 +130,12 @@ function main {
 
     echo
     echo "Add $USER into the docker group..."
-    sudo usermod -aG docker $USER
+    usermod -aG docker $USER
 
-    # Change the default data location
-    if [ -n $docker_data_directory ];then 
-      echo -e "{\n\t\"data-root\": \"${docker_data_directory}\"\n}" > /etc/docker/daemon.json
-    fi
+    set_daemon_option
 
-    sudo service docker start
-    [ $disable_docker_service ] || sudo service enable docker
+    systemctl start docker
+    [ $disable_service ] || systemctl enable docker
 }
 
 main "$@"
