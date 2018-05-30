@@ -6,7 +6,7 @@
 #   Installing Docker and composer
 declare -r PROGNAME=$(basename $0)
 declare -r PROGDIR=$(readlink -m $(dirname $0))
-declare -r DEFAULT_PROMETHEUS_LISTEN="127.0.0.1:9323"
+declare -r DEFAULT_PROMETHEUS_LISTEN="0.0.0.0:4999"
 declare -r DEFAULT_DATA_ROOT="/var/lib/docker"
 declare -r DEFAULT_EXPERIMENTAL="true"
 declare -r DAEMON_JSON_FILE="/etc/docker/daemon.json"
@@ -76,22 +76,16 @@ function install_docker(){
     apt-get remove docker docker-engine docker.io
     apt-get update
     apt-get install apt-transport-https ca-certificates curl software-properties-common
-    curl -fsSL https://download.docker.com/linux/ubuntu/gpg | apt-key add -
-    add-apt-repository "deb [arch=amd64] https://download.docker.com/linux/ubuntu \
-       $(lsb_release -cs) stable"
-    apt-get update
-    apt-get install docker-ce
-    
-
   elif [ $pkg_mgr = "yum" ];then
     yum remove docker docker-client docker-client-latest docker-common \
          docker-latest docker-latest-logrotate docker-logrotate docker-selinux \
          docker-engine-selinux docker-engine -y
     yum install -y yum-utils device-mapper-persistent-data lvm2
-    yum-config-manager --add-repo https://download.docker.com/linux/centos/docker-ce.repo
-    yum install -y docker-ce
-
   fi
+
+  curl -fsSL get.docker.com -o get-docker.sh
+  sh get-docker.sh
+
 }
 
 
