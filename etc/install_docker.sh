@@ -4,6 +4,11 @@
 #
 # Description:
 #   Installing Docker and composer
+#
+# Note:
+#   I do not guarantee this works well. 
+#   so please use this with caution.
+#
 declare -r PROGNAME=$(basename $0)
 declare -r PROGDIR=$(readlink -m $(dirname $0))
 declare -r DEFAULT_PROMETHEUS_LISTEN="0.0.0.0:4999"
