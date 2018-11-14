@@ -9,8 +9,19 @@ declare -r PROGDIR=$(readlink -m $(dirname $0))
 declare -r DEFAULT_PROMETHEUS_LISTEN="0.0.0.0:4999"
 declare -r DEFAULT_DATA_ROOT="/var/lib/docker"
 declare -r DEFAULT_EXPERIMENTAL="true"
-declare -r DAEMON_JSON_FILE="/etc/docker/daemon.json"
-declare -A OPTIONS=( ["data_root"]="${DEFAULT_DATA_ROOT}"  ["metrics-addr"]="${DEFAULT_PROMETHEUS_LISTEN}" ["experimental"]="${DEFAULT_EXPERIMENTAL}" )
+declare -r DEFAULT_IPV6="false"
+declare -r DEFAULT_SYSTEMD_MEMLOCK_RELEASE="true"
+# https://access.redhat.com/documentation/ko-kr/red_hat_enterprise_linux/6/html/performance_tuning_guide/s-memory-captun
+declare -r DEFAULT_VM_MAX_MAP_COUNT=262144
+declare -r DOCKER_CONFIG_DIR="/etc/docker"
+declare -r DAEMON_JSON_FILE="${DOCKER_CONFIG_DIR}/daemon.json"
+declare -A OPTIONS=( ["data_root"]="${DEFAULT_DATA_ROOT}"  ["metrics-addr"]="${DEFAULT_PROMETHEUS_LISTEN}" ["experimental"]="${DEFAULT_EXPERIMENTAL}" ["ipv6"]="false")
+
+declare docker_service="enabled"
+
+declare default_interface=$(/sbin/ip route | awk '/default/ { print $5 }')
+declare systemd_version=$(systemctl --version | awk '/systemd/{print $2}')
+
 function usage {
     cat <<- EOF
 Usage: $PROGNAME [ -h ]
@@ -18,19 +29,28 @@ Usage: $PROGNAME [ -h ]
 Optional arguments:
     -h: Help
     -d: Change default docker data directory (default, ${DEFAULT_DATA_ROOT})
-    -e: Disable experimental feature (default, enabled)
+    -e: Disable experimental feature
+    -6: Enable IPv6 support
+    -l: Disable unlimited memlock setting (default, ${DEFAULT_SYSTEMD_MEMLOCK_RELEASE})
+    -m: Increase max_map_count (default, ${DEFAULT_VM_MAX_MAP_COUNT})
     -s: Disable docker service (default, enabled)
     -p: Change prometheus bind URL (default, ${DEFAULT_PROMETHEUS_LISTEN})
+    -u: An account to be a member of the docker group
     -v: Enable debug mode
 
 General usage example:
 
-  $ $PROGNAME -v 
+ > Set /data/docker-data as a docker data store
   $ $PROGNAME -d /data/docker-data
-  $ $PROGNAME -e true
-  $ $PROGNAME -p "0.0.0.0:9323"
-  $ $PROGNAME -s
 
+ > Enable metric feature for prometheus
+  $ $PROGNAME -p "${DEFAULT_PROMETHEUS_LISTEN}"
+
+ > Increase max memory map count for process
+  $ $PROGNAME -m ${DEFAULT_VM_MAX_MAP_COUNT}
+
+ > A user, admin, to be a member of the docker group 
+  $ $PROGNAME -u admin
 EOF
 
     exit 0
@@ -52,14 +72,18 @@ function get_pkg_manager() {
 
 
 function parse_arguments {
-    while getopts vd:sp:eh OPTION
+    while getopts vd:slp:m:e6u:h OPTION
     do
         case $OPTION in
             h) usage;;
             d) OPTIONS["data_root"]=$OPTARG;;
             e) OPTIONS["experimental"]="false";;
-            s) disable_service=true;;
+            6) OPTIONS["IPV6"]="true";;
+            l) memlock_release="false";;
+            s) docker_service="disabled";;
             p) OPTIONS["metrics-addr"]=$OPTARG;;
+            m) max_mem_count=${OPTARG:-$DEFAULT_VM_MAX_MAP_COUNT};;
+            u) docker_user=$OPTARG;;
             v) set -x;;
         esac
     done
@@ -100,14 +124,36 @@ function install_docker_compose(){
   -o /etc/bash_completion.d/docker-compose
   chmod +x /usr/local/bin/docker-compose
 }
+function set_kernel_params(){
+
+  local -r file_net_bridge_nf_call_iptables="10-net-bridge-nf-call-iptables.conf"
+  local -r file_vm_max_map_count="10-vm-max-map-count.conf"
+
+  echo "net.bridge.bridge-nf-call-iptables = 1" > /etc/sysctl.d/$file_net_bridge_nf_call_iptables
+  echo "net.bridge.bridge-nf-call-ip6tables = 1" > /etc/sysctl.d/$file_net_bridge_nf_call_iptables
+  sysctl -p $file_net_bridge_nf_call_iptables
+
+  if [ $max_mem_count ];then
+    echo "vm.max_map_count=${max_mem_count}" > /etc/sysctl.d/$file_vm_max_map_count
+    sysctl -p /etc/sysctl.d/$file_vm_max_map_count
+  fi
+
+}
 
 function set_daemon_option() {
+    [ -d $DOCKER_CONFIG_DIR ] || mkdir -p $DOCKER_CONFIG_DIR
+    touch $DAEMON_JSON_FILE
     echo "{" > $DAEMON_JSON_FILE
-    echo -e "  \"data-root\": \"${OPTIONS[data_root]}\","       >> $DAEMON_JSON_FILE
-    echo -e "  \"metrics-addr\": \"${OPTIONS[metrics-addr]}\"," >> $DAEMON_JSON_FILE
-    echo -e "  \"experimental\": ${OPTIONS[experimental]}"      >> $DAEMON_JSON_FILE
+    echo -e "  \"data-root\": \"${OPTIONS[data_root]}\","         >> $DAEMON_JSON_FILE
+    echo -e "  \"ipv6\": ${OPTIONS[ipv6]},"                       >> $DAEMON_JSON_FILE
+    # Only available metrics-addr when experimental is on
+    if [ "${OPTIONS[experimental]}" = "true" ];then
+      echo -e "  \"experimental\": ${OPTIONS[experimental]},"     >> $DAEMON_JSON_FILE
+      echo -e "  \"metrics-addr\": \"${OPTIONS[metrics-addr]}\""  >> $DAEMON_JSON_FILE
+    fi
     echo "}" >> $DAEMON_JSON_FILE
 }
+
 
 function main {
 
@@ -122,14 +168,23 @@ function main {
     install_docker $pkg_mgr
     [ $no_docker_compose ] || install_docker_compose
 
-    echo
-    echo "Add $USER into the docker group..."
-    usermod -aG docker $USER
+    if [ $docker_user ];then
+      echo
+      echo "Add $USER into the docker group..."
+      usermod -aG docker $USER
+    fi
 
     set_daemon_option
+    set_kernel_params
+    
+    if [ "${memlock_release}" = 'true' ];then
+      mkdir -p /etc/systemd/system/docker.service.d/
+      echo -e "[Service]\nLimitMEMLOCK=infinity" > /etc/systemd/system/docker.service.d/override.conf
+      systemctl daemon-reload
+    fi
 
     systemctl start docker
-    [ $disable_service ] || systemctl enable docker
+    [ "$docker_service" = "enabled" ] && systemctl enable docker
 }
 
 main "$@"
