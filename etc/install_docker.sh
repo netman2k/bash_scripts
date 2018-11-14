@@ -135,8 +135,8 @@ function set_kernel_params(){
   local -r file_vm_max_map_count="10-vm-max-map-count.conf"
 
   echo "net.bridge.bridge-nf-call-iptables = 1" > /etc/sysctl.d/$file_net_bridge_nf_call_iptables
-  echo "net.bridge.bridge-nf-call-ip6tables = 1" > /etc/sysctl.d/$file_net_bridge_nf_call_iptables
-  sysctl -p $file_net_bridge_nf_call_iptables
+  echo "net.bridge.bridge-nf-call-ip6tables = 1" >> /etc/sysctl.d/$file_net_bridge_nf_call_iptables
+  sysctl -p /etc/sysctl.d/$file_net_bridge_nf_call_iptables
 
   if [ $max_mem_count ];then
     echo "vm.max_map_count=${max_mem_count}" > /etc/sysctl.d/$file_vm_max_map_count
